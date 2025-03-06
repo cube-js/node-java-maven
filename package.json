@@ -1,6 +1,6 @@
 {
-  "name": "node-java-maven",
-  "version": "0.1.2",
+  "name": "@cubejs-backend/node-java-maven",
+  "version": "0.1.3",
   "description": "Utility for Node's java module to load mvn dependencies.",
   "main": "index.js",
   "bin": {
@@ -15,11 +15,11 @@
     "mvn"
   ],
   "bugs": {
-    "url": "https://github.com/joeferner/node-java-maven/issues"
+    "url": "https://github.com/cube-js/node-java-maven/issues"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/joeferner/node-java-maven.git"
+    "url": "https://github.com/cube-js/node-java-maven.git"
   },
   "author": "Joe Ferner <joe@fernsroth.com>",
   "license": "MIT",
