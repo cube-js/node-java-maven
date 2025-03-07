@@ -32,5 +32,8 @@
   "devDependencies": {
     "fs-extra": "^11.3.0",
     "mocha": "^11.1.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
