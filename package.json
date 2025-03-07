@@ -7,7 +7,7 @@
     "node-java-maven": "bin/node-java-maven"
   },
   "scripts": {
-    "test": "./node_modules/.bin/mocha --reporter spec test"
+    "test": "mocha --reporter spec test"
   },
   "keywords": [
     "java",
