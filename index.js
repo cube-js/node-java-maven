@@ -1,16 +1,16 @@
 'use strict';
 
-var fs = require('fs');
-var async = require('async');
-var xml2js = require('xml2js');
-var request = require('request');
-var path = require('path');
-var mkdirp = require('mkdirp');
-var Dependency = require('./lib/dependency');
+const fs = require('fs');
+const async = require('async');
+const xml2js = require('xml2js');
+const axios = require('axios').default;
+const path = require('path');
+const { mkdirp } = require('mkdirp');
+const Dependency = require('./lib/dependency');
 
 module.exports = function(/*options, callback*/) {
-  var options;
-  var callback;
+  let options;
+  let callback;
   if (arguments.length == 1) {
     options = {};
     callback = arguments[0];
@@ -32,12 +32,12 @@ module.exports = function(/*options, callback*/) {
   options.localRepository = options.localRepository || path.join(getUserHome(), '.m2/repository');
   options.concurrency = options.concurrency || 1;
 
-  var dependencies = {};
-  var exclusions = [];
-  var errors = [];
+  let dependencies = {};
+  let exclusions = [];
+  let errors = [];
 
-  var dependencyQueue = async.queue(processDependency, options.concurrency);
-  dependencyQueue.drain = complete;
+  let dependencyQueue = async.queue(processDependency, options.concurrency);
+  dependencyQueue.drain(complete);
 
   return go(callback);
 
@@ -82,7 +82,7 @@ module.exports = function(/*options, callback*/) {
     if (errors.length > 0) {
       return callback(errors);
     }
-    var classpath = getClasspathFromDependencies(dependencies);
+    const classpath = getClasspathFromDependencies(dependencies);
     return callback(null, {
       classpath: classpath,
       dependencies: dependencies
@@ -94,7 +94,7 @@ module.exports = function(/*options, callback*/) {
   }
 
   function dependencyQueuePush(dependency, callback) {
-    var dependencyArray = dependency;
+    let dependencyArray = dependency;
     if (!(dependencyArray instanceof Array)) {
       dependencyArray = [dependency];
     }
@@ -121,14 +121,14 @@ module.exports = function(/*options, callback*/) {
       if (err) {
         errors.push(err);
       }
-      var c = callback;
+      const c = callback;
       callback = function() {};
       return c();
     });
   }
 
   function resolveDependency(dependency, callback) {
-    var existingDependency = dependencies[dependency.toString()];
+    let existingDependency = dependencies[dependency.toString()];
     if (existingDependency) {
       dependency.state = 'waitUntilComplete';
       return existingDependency.waitUntilComplete(callback);
@@ -146,7 +146,7 @@ module.exports = function(/*options, callback*/) {
 
     function processJar(dependency, callback) {
       dependency.state = 'processJar';
-      if (dependency.getPackaging() == 'jar' || dependency.getPackaging() == 'bundle') {
+      if (dependency.getPackaging() === 'jar' || dependency.getPackaging() === 'bundle') {
         return resolveJar(dependency, function(err) {
           if (err) {
             return callback(err);
@@ -160,7 +160,7 @@ module.exports = function(/*options, callback*/) {
 
     function processParents(dependency, callback) {
       dependency.state = 'processParents';
-      var parent = dependency.getParent();
+      let parent = dependency.getParent();
       if (parent) {
         return processDependency(parent, function(err) {
           if (err) {
@@ -175,16 +175,16 @@ module.exports = function(/*options, callback*/) {
 
     function processChildDependencies(dependency, callback) {
       dependency.state = 'processChildDependencies';
-      var childDependencies = dependency
+      let childDependencies = dependency
         .getDependencies()
         .filter(function(d) {
-          var isExclusion = exclusions.reduce(function(isExclusion,exclusion){
+          let isExclusion = exclusions.reduce(function(isExclusion,exclusion){
             if (isExclusion){
               return isExclusion;
             }
             return exclusion.groupId === d.groupId && exclusion.artifactId === d.artifactId;
           },false );
-          return d.scope != 'test' && d.optional != true  && !isExclusion;
+          return d.scope !== 'test' && d.optional !== true  && !isExclusion;
         });
       if (childDependencies.length > 0) {
         childDependencies.forEach(function(d) {
@@ -197,7 +197,7 @@ module.exports = function(/*options, callback*/) {
   } // END resolveDependency
 
   function resolvePom(dependency, callback) {
-    var pomPath = path.resolve(options.localRepository, dependency.getPomPath());
+    let pomPath = path.resolve(options.localRepository, dependency.getPomPath());
     return fs.exists(pomPath, function(exists) {
       if (exists) {
         return readFile(dependency, pomPath, callback);
@@ -233,7 +233,7 @@ module.exports = function(/*options, callback*/) {
         }
         dependency.pomXml = xml;
         if (dependency.getParent()) {
-          var parentDep = dependency.getParent();
+          let parentDep = dependency.getParent();
           debug("resolving parent: " + parentDep);
           return resolvePom(parentDep, function(err, parentPomXml) {
             if (err) {
@@ -249,7 +249,7 @@ module.exports = function(/*options, callback*/) {
   } // END resolvePom
 
   function resolveJar(dependency, callback) {
-    var jarPath = path.resolve(options.localRepository, dependency.getJarPath());
+    let jarPath = path.resolve(options.localRepository, dependency.getJarPath());
     return fs.exists(jarPath, function(exists) {
       if (exists) {
         dependency.jarPath = jarPath;
@@ -269,11 +269,12 @@ module.exports = function(/*options, callback*/) {
 
   function readPackageJson(callback) {
     return fs.readFile(options.packageJsonPath, 'utf8', function(err, packageJsonString) {
+      let packageJson
       if (err) {
         return callback(err);
       }
       try {
-        var packageJson = JSON.parse(packageJsonString);
+        packageJson = JSON.parse(packageJsonString);
       } catch (ex) {
         return callback(ex);
       }
@@ -297,21 +298,21 @@ module.exports = function(/*options, callback*/) {
   }
 
   function resolveDependencyUnknowns(dependency, parent) {
-    var p;
+    let p;
 
-    if (dependency.groupId == '${project.groupId}') {
+    if (dependency.groupId === '${project.groupId}') {
       dependency.groupId = parent.groupId;
     }
 
     if (!dependency.version) {
-      var d = findInDependencyManagement(parent, dependency);
+      let d = findInDependencyManagement(parent, dependency);
       if (d) {
         dependency.version = d.version;
       }
     }
 
     // this is a hack. should probably search the module list or something
-    if (!dependency.version && dependency.groupId == parent.groupId) {
+    if (!dependency.version && dependency.groupId === parent.groupId) {
       dependency.version = parent.version;
     }
 
@@ -326,9 +327,9 @@ module.exports = function(/*options, callback*/) {
       dependency.artifactId = resolveSubstitutions(dependency.artifactId, parent, dependency);
     }
     if (dependency.version) {
-      var changed;
+      let changed;
       do {
-        var newValue = resolveSubstitutions(dependency.version, parent, dependency);
+        let newValue = resolveSubstitutions(dependency.version, parent, dependency);
         changed = dependency.version != newValue;
         dependency.version = newValue;
       } while(changed);
@@ -337,25 +338,25 @@ module.exports = function(/*options, callback*/) {
 
   function resolveSubstitutions(str, pom, dependency) {
     str = str.replace(/\$\{(.*?)\}/g, function(m, propertyName) {
-      if(propertyName == 'project.version' || propertyName == 'version') {
+      if(propertyName === 'project.version' || propertyName === 'version') {
         return pom.version;
       }
-      if(propertyName == 'project.parent.version') {
+      if(propertyName === 'project.parent.version') {
           return pom.pomXml.project.parent[0].version[0];
       }
-      if(propertyName == 'project.parent.groupId') {
+      if(propertyName === 'project.parent.groupId') {
           return pom.pomXml.project.parent[0].groupId[0]
       }
-      var property = resolveProperty(propertyName, pom);
+      let property = resolveProperty(propertyName, pom);
       return property instanceof Array ? property.slice(-1) : property;
     });
     return resolveVersionRange(str, dependency);
   }
-  
+
   function resolveVersionRange(str, dependency) {
-    var m = str.match(/[\[\(](.*),(.*)[\]\)]/);
+    let m = str.match(/[\[\(](.*),(.*)[\]\)]/);
     if(m) {
-      var existingDependency = findExistingDependencyWithoutVersion(dependency);
+      let existingDependency = findExistingDependencyWithoutVersion(dependency);
       if (existingDependency) {
         return existingDependency.version;
       }
@@ -367,28 +368,28 @@ module.exports = function(/*options, callback*/) {
     }
     return str;
   }
-  
+
   function findExistingDependencyWithoutVersion(dependency) {
-    var matching = Object.keys(dependencies).filter(function(dependencyId) {
-      var d = dependencies[dependencyId]; 
-      return (d.groupId == dependency.groupId) && (d.artifactId == dependency.artifactId);
+    let matching = Object.keys(dependencies).filter(function(dependencyId) {
+      let d = dependencies[dependencyId];
+      return (d.groupId === dependency.groupId) && (d.artifactId === dependency.artifactId);
     });
-    if (matching.length == 1) {
+    if (matching.length === 1) {
       return dependencies[matching[0]];
     }
     return null;
   }
 
   function resolveProperty(propertyName, pom) {
-    if (pom.pomXml && pom.pomXml.project) {
-      var project = pom.pomXml.project;
-      if (project.properties && project.properties.length == 1) {
-        var properties = project.properties[0];
+    if (pom.pomXml?.project) {
+      let project = pom.pomXml.project;
+      if (project.properties?.length === 1) {
+        let properties = project.properties[0];
         if (properties[propertyName]) {
           return properties[propertyName];
         }
       }
-      if (project.parent && project.parent.length == 1) {
+      if (project.parent?.length === 1) {
         return resolveProperty(propertyName, project.parent[0]);
       }
     }
@@ -396,24 +397,24 @@ module.exports = function(/*options, callback*/) {
   }
 
   function findInDependencyManagement(parent, dependency) {
-    var list = parent
+    let list = parent
       .getDependencyManagementDependencies()
       .filter(function(d) {
-        return (d.groupId == dependency.groupId) && (d.artifactId == dependency.artifactId);
+        return (d.groupId === dependency.groupId) && (d.artifactId === dependency.artifactId);
       })
 
     list = list.filter(function(item, pos) {
-      for(var i = 0; i < pos; i++) {
-        if(list[i].toString() == item.toString()) {
+      for(let i = 0; i < pos; i++) {
+        if(list[i].toString() === item.toString()) {
           return false;
         }
       }
       return true;
     });
 
-    if (list.length == 1) {
-      var d = list[0];
-      if (d.version == '${project.version}') {
+    if (list.length === 1) {
+      let d = list[0];
+      if (d.version === '${project.version}') {
         d.version = parent.version;
       }
       return d;
@@ -421,7 +422,7 @@ module.exports = function(/*options, callback*/) {
       throw new Error('multiple matches found in dependency management for ' + dependency.toString() + ' [' + list + ']');
     }
 
-    var p = parent.getParent();
+    let p = parent.getParent();
     if (p) {
       return findInDependencyManagement(dependencies[p.toString()], dependency);
     }
@@ -429,59 +430,55 @@ module.exports = function(/*options, callback*/) {
   }
 
   function downloadFile(urlPath, destinationFile, reason, callback) {
-    var repositoryIndex = 0;
-    return mkdirp(path.dirname(destinationFile), function(err) {
-      if (err) {
-        return callback(err);
-      }
+    let repositoryIndex = 0;
 
-      var error = null;
-      var foundUrl = null;
-      return async.whilst(
-        function() { return (repositoryIndex < options.repositories.length) && !foundUrl; },
-        function(callback) {
-          var repository = options.repositories[repositoryIndex];
-          var url = repository.url + urlPath;
-          var req_options = { url: url };
-          if (repository.hasOwnProperty('credentials')) {
-            var username = repository.credentials.username;
-            var password = repository.credentials.password;
-            req_options = {
-              url: url,
-              auth: {
-                user: username,
-                password: password
-              }
-            };
-          }
-          debug('downloading ' + url);
-          var r = request(req_options);
-          r.on('response', function(response) {
-            if (response.statusCode != 200) {
-              error = new Error('download failed for ' + url + (reason ? ' (' + reason + ')' : '') + ' [status: ' + response.statusCode + ']');
-              return callback();
-            } else {
-              var out = fs.createWriteStream(destinationFile);
-              out.on('finish', function() {
-                foundUrl = url;
-                return callback();
-              });
-              out.on('error', function(err) {
-                return callback();
-              });
-              return r.pipe(out);
+    return mkdirp(path.dirname(destinationFile))
+      .then(() => {
+        let error = null;
+        let foundUrl = null;
+        return async.whilst(
+          function (cb) {
+            return cb(null, (repositoryIndex < options.repositories.length) && !foundUrl);
+          },
+          function (callback) {
+            let repository = options.repositories[repositoryIndex];
+            let url = repository.url + urlPath;
+            let req_options = { url: url };
+            if (repository.hasOwnProperty('credentials')) {
+              let username = repository.credentials.username;
+              let password = repository.credentials.password;
+              req_options = {
+                url: url,
+                auth: {
+                  username,
+                  password
+                }
+              };
             }
-          });
-          repositoryIndex++;
-        },
-        function() {
-          if (foundUrl) {
-            return callback(null, foundUrl);
+            debug('downloading ' + url);
+            axios.get(url, req_options).catch(err => {
+              error = err
+              return callback();
+            }).then(res => {
+              fs.promises.writeFile(destinationFile, res.data).then(() => {
+                foundUrl = url;
+                return callback()
+              }).catch(() => {
+                return callback();
+              })
+            })
+            repositoryIndex++;
+          },
+          function () {
+            if (foundUrl) {
+              return callback(null, foundUrl);
+            }
+            return callback(error);
           }
-          return callback(error);
-        }
-      );
-    });
+        );
+
+      })
+      .catch((err) => callback(err));
   }
 
   function debug() {
