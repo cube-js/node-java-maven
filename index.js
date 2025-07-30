@@ -443,31 +443,47 @@ module.exports = function(/*options, callback*/) {
           function (callback) {
             let repository = options.repositories[repositoryIndex];
             let url = repository.url + urlPath;
-            let req_options = { url: url };
+            let req_options = {
+              url: url,
+              responseType: 'stream', // Use stream for better memory handling
+              timeout: 30000
+            };
+
             if (repository.hasOwnProperty('credentials')) {
-              let username = repository.credentials.username;
-              let password = repository.credentials.password;
-              req_options = {
-                url: url,
-                auth: {
-                  username,
-                  password
-                }
+              req_options.auth = {
+                username: repository.credentials.username,
+                password: repository.credentials.password
               };
             }
+
             debug('downloading ' + url);
-            axios.get(url, req_options).catch(err => {
-              error = err
-              return callback();
-            }).then(res => {
-              fs.promises.writeFile(destinationFile, res.data).then(() => {
-                foundUrl = url;
-                return callback()
-              }).catch(() => {
+            axios.get(url, req_options)
+              .then(response => {
+                if (response.status !== 200) {
+                  error = new Error('download failed for ' + url + (reason ? ' (' + reason + ')' : '') + ' [status: ' + response.status + ']');
+                  repositoryIndex++;
+                  return callback();
+                }
+
+                const writer = fs.createWriteStream(destinationFile);
+                response.data.pipe(writer);
+
+                writer.on('finish', () => {
+                  foundUrl = url;
                 return callback();
+                });
+
+                writer.on('error', (writeErr) => {
+                  error = writeErr;
+                  repositoryIndex++;
+                  return callback();
+                });
               })
-            })
-            repositoryIndex++;
+              .catch(err => {
+                error = new Error('download failed for ' + url + (reason ? ' (' + reason + ')' : '') + ' [status: ' + (err.response?.status || 'network error') + ']');
+                repositoryIndex++;
+                return callback();
+              });
           },
           function () {
             if (foundUrl) {
@@ -476,7 +492,6 @@ module.exports = function(/*options, callback*/) {
             return callback(error);
           }
         );
-
       })
       .catch((err) => callback(err));
   }
