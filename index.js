@@ -443,31 +443,33 @@ module.exports = function(/*options, callback*/) {
           function (callback) {
             let repository = options.repositories[repositoryIndex];
             let url = repository.url + urlPath;
-            let req_options = { url: url };
+            // Without responseType axios decodes the body as UTF-8 text, which corrupts every jar.
+            let req_options = { url: url, responseType: 'arraybuffer' };
             if (repository.hasOwnProperty('credentials')) {
               let username = repository.credentials.username;
               let password = repository.credentials.password;
-              req_options = {
-                url: url,
-                auth: {
-                  username,
-                  password
-                }
+              req_options.auth = {
+                username,
+                password
               };
             }
             debug('downloading ' + url);
-            axios.get(url, req_options).catch(err => {
-              error = err
-              return callback();
-            }).then(res => {
-              fs.promises.writeFile(destinationFile, res.data).then(() => {
-                foundUrl = url;
-                return callback()
-              }).catch(() => {
-                return callback();
-              })
-            })
             repositoryIndex++;
+            axios.get(url, req_options)
+              .then(
+                (res) => fs.promises.writeFile(destinationFile, res.data).then(() => {
+                  foundUrl = url;
+                }),
+                (err) => {
+                  const status = err.response ? err.response.status : err.code;
+                  error = new Error('download failed for ' + url + (reason ? ' (' + reason + ')' : '') + ' [status: ' + status + ']');
+                }
+              )
+              .catch((err) => {
+                error = err;
+              })
+              // Outside the promise chain, so a throw in the next step is not swallowed as an unhandled rejection.
+              .then(() => process.nextTick(callback));
           },
           function () {
             if (foundUrl) {
