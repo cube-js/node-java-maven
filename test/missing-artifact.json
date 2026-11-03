@@ -1,0 +1,11 @@
+{
+  "java": {
+    "dependencies": [
+      {
+        "groupId": "com.example.doesnotexist",
+        "artifactId": "missing-artifact",
+        "version": "1.0.0"
+      }
+    ]
+  }
+}
